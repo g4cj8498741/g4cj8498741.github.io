@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        .container {
+            width: 500px;
+            margin: 0 auto;
+            border-radius: 20px;
+            padding: 5px;
+            /* transition: all 1s; */
+        }
+
+        .border {
+            border: grey 1px solid;
+        }
+
+        .center {
+            text-align: center;
+            margin: 5px;
+        }
+
+        .todo-item {
+            margin: 5px;
+            padding: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .m-1 {
+            margin: 5px;
+        }
+
+        .d-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 5px;
+        }
+
+        .circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 15px;
+            cursor: pointer;
+
+        }
+
+        .isCompleted {
+            text-decoration: line-through;
+        }
+
+        input {
+            width: 440px;
+            height: 40px;
+            font-size: 16px;
+        }
+
+        p {
+            margin: 0px;
+            font-size: 24px;
+        }
+
+        .div1 {
+            width: 480px;
+            height: 30px;
+            border: 1px solid black;
+        }
+
+        .div1 input {
+            height: 20px;
+            border: 0px;
+            width: 300px;
+            font-size: 24px;
+            margin-top: 2px;
+            /* text-decoration:line-through; */
+        }
+        li{
+            list-style-type:none;
+            margin-left: 5px; 
+            margin-bottom: 3px;
+        }
+        ul{
+            padding: 0px;
+            margin-top: 0px;
+        }
+        li i {
+            margin-left: 3px;
+            cursor: pointer;
+        }
+        i:hover{
+            color: gray;
+        }
+    </style>
+    <script src="https://kit.fontawesome.com/1d9dcf12aa.js" crossorigin="anonymous"></script>
+    <title>Todo</title>
+</head>
+
+
+<body>
+    <div class="border container">
+        <h2 class="center">TodoList</h2>
+        <div class="m-1" style="display:flex ;align-items: center;">
+            <input type="text" placeholder=" I am going to do..." id="inputValue">
+            <i class="fa fa-plus-circle fa-2x" aria-hidden="true" style="margin-left: 5px; cursor: pointer;"></i>
+        </div>
+        <ul id="todo-list">
+        </ul>
+        
+    </div>
+    <script>
+        const add = document.querySelector('#inputValue');
+        let id = 0;
+        //使用事件委託 控制所有按鈕 包含 新增 刪除 修改 完成
+        document.querySelector('.container').addEventListener('click', function (e) {
+            const target = e.target;
+            const p = target.parentElement.previousElementSibling;
+            if (target.classList.contains('fa-circle-check')) {//完成
+                if (p.style.textDecoration === 'line-through') {
+                    p.style.textDecoration = '';
+                    check(p.getAttribute('data-id'),p.innerText, p.style.textDecoration)
+                } else {
+                    p.style = 'text-decoration: line-through;';
+                    check(p.getAttribute('data-id'), p.innerText,p.style.textDecoration)
+                }
+            }
+            if (target.classList.contains('fa-pen-to-square')) {//修改
+                if (add.value === '') {
+                    add.value = p.innerText;
+                    console.log(p.getAttribute('data-id'))
+                } else {
+                    p.innerText = add.value;
+                    todoput(p.getAttribute('data-id'), add.value,p.style.textDecoration)
+                    add.value = '';
+                }
+            }
+            if (target.classList.contains('fa-circle-xmark')) {//刪除
+                tosode(p.getAttribute('data-id'));
+                target.parentElement.parentNode.remove();
+            }
+            if (target.classList.contains('fa-plus-circle')  ) {//新增
+                addTodos();
+            }
+        })
+
+       
+        const openRequest = indexedDB.open('DB');// 創建DB,已存在則開啟DB
+        openRequest.onsuccess = event => {
+            //初始,刷新 讀取DB並呼叫函數新增'標籤'
+            const db = event.target.result;
+            db.transaction(['Todo'])
+                .objectStore('Todo')
+                .openCursor()
+                .onsuccess = event => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        const member = cursor.value;
+                        console.log(member['matter'])
+                        id = member['id'];
+                        Todos(member['matter'],member['dataid'],member['textDecoration']);
+                        cursor.continue();
+                    }
+                };
+        };
+
+
+        //建立Table
+        openRequest.onupgradeneeded = function () {
+            const db = openRequest.result;
+            const store = db.createObjectStore("Todo", { keyPath: "dataid", autoIncrement: true });
+        }
+        
+
+        // 頁面刷新時 新增已有資料函數
+        function Todos(value,dataid,textvalue) {
+            const adddiv = document.querySelector('#todo-list');
+            sort = 'beforeend';
+            if(textvalue !== 'line-through')
+            {
+                sort = 'afterbegin';
+            }
+            adddiv.insertAdjacentHTML(`${sort}`, `
+            <li>
+                <div class="d-flex div1" >
+                    <p data-id = "${dataid}" style="text-decoration: ${textvalue};">${value}</p>
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                </div>
+            </li>
+            `);
+        }
+
+        // 刪除DB內資料函數
+        function tosode(value) {
+            const db = openRequest.result;
+            db.transaction(['Todo'],'readwrite')
+                .objectStore('Todo')
+                .delete(value);
+        }
+
+
+         // 新增TODO並且存入DB內 函數
+         function addTodos() {
+            const inputValue = document.querySelector('#inputValue');
+            const adddiv = document.querySelector('#todo-list');
+            if (inputValue.value.trim().length === 0) {
+                return;
+            }
+            const newTodo = document.createElement('p');
+            adddiv.insertAdjacentHTML('afterbegin', `
+            <li>
+                <div class="d-flex div1" >
+                    <p data-id="${inputValue.value}">${inputValue.value}</p>
+                    <div>
+                        <i class="fa-solid fa-circle-check"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+                </div>
+            </li>
+            `);
+            //=====================此區間為存入DB
+            const db = openRequest.result;
+            db.transaction(['Todo'], 'readwrite').objectStore('Todo').add({
+                matter: inputValue.value,
+                dataid:inputValue.value,
+                textDecoration:''
+            })
+            //======================
+            inputValue.value = ''
+        }
+
+        //修改DB資料函數 必須包含識別屬性 例如:id
+        function todoput(inid, value,stylevalue) {
+            const db = openRequest.result;
+            db.transaction(['Todo'], 'readwrite').objectStore('Todo').put({
+                dataid: inid,//識別屬性
+                matter: value,
+                textDecoration : stylevalue
+            })
+        }
+
+        function check(id,value,stylevalue){
+            const db = openRequest.result;
+            db.transaction(['Todo'],'readwrite').objectStore('Todo').put({
+                dataid : id,
+                matter: value,
+                textDecoration:stylevalue
+            })
+        }
+    </script>
+</body>
+
+</html>
